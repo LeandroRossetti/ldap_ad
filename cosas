@@ -1,0 +1,11 @@
+Desarrollar una aplicación web en Python que integre autenticación contra Active Directory. Una vez autenticado, el usuario accederá a un sistema de gestión de stock que permita administrar productos, registrar movimientos y consultar reportes, respetando roles y permisos asociados a grupos del AD. Y restringiendo por horario.
+
+La aplicación deberá persistir datos en una base, implementar buenas prácticas de seguridad y permitir la exportación de información (preferentemente .csv).
+
+Roles y permisos basados en grupos de AD
+
+    Ejemplo:
+        Admin: acceso completo.
+        Operador: solo carga de movimientos.
+        Consulta: solo visualización.
+

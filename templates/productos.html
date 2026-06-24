@@ -1,0 +1,48 @@
+{% extends "base.html" %}
+{% block title %}Productos{% endblock %}
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <h2>Productos</h2>
+    {% if 'Admin' in session.grupos %}
+    <a href="{{ url_for('nuevo_producto') }}" class="btn btn-primary">+ Nuevo Producto</a>
+    {% endif %}
+</div>
+
+<div class="table-responsive">
+    <table class="table table-striped table-hover shadow">
+        <thead class="table-dark">
+            <tr>
+                <th>ID</th>
+                <th>Nombre</th>
+                <th>Descripción</th>
+                <th>Stock Actual</th>
+                <th>Stock Mínimo</th>
+                <th>Acciones</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for p in productos %}
+            <tr class="{% if p.stock_actual < p.stock_minimo %}table-danger{% endif %}">
+                <td>{{ p.id }}</td>
+                <td>{{ p.nombre }}</td>
+                <td>{{ p.descripcion or '' }}</td>
+                <td>{{ p.stock_actual }}</td>
+                <td>{{ p.stock_minimo }}</td>
+                <td>
+                    {% if 'Admin' in session.grupos %}
+                    <a href="{{ url_for('editar_producto', id=p.id) }}" class="btn btn-sm btn-warning">Editar</a>
+                    <form action="{{ url_for('eliminar_producto', id=p.id) }}" method="POST" style="display:inline;" onsubmit="return confirm('¿Eliminar este producto?')">
+                        <button type="submit" class="btn btn-sm btn-danger">Eliminar</button>
+                    </form>
+                    {% endif %}
+                </td>
+            </tr>
+            {% else %}
+            <tr>
+                <td colspan="6" class="text-center">No hay productos cargados.</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endblock %}

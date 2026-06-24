@@ -1,0 +1,100 @@
+{% extends "base.html" %}
+{% block title %}Reportes{% endblock %}
+{% block content %}
+<h2 class="mb-4">Reportes</h2>
+
+<div class="row g-4">
+    <div class="col-md-6">
+        <div class="card shadow">
+            <div class="card-header bg-info text-white">
+                <h5>Stock por Producto</h5>
+            </div>
+            <div class="card-body">
+                <div class="table-responsive" style="max-height: 400px;">
+                    <table class="table table-sm">
+                        <thead>
+                            <tr>
+                                <th>Producto</th>
+                                <th>Stock Actual</th>
+                                <th>Stock Mínimo</th>
+                                <th>Estado</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for p in productos %}
+                            <tr class="{% if p.stock_actual < p.stock_minimo %}table-danger{% endif %}">
+                                <td>{{ p.nombre }}</td>
+                                <td>{{ p.stock_actual }}</td>
+                                <td>{{ p.stock_minimo }}</td>
+                                <td>
+                                    {% if p.stock_actual < p.stock_minimo %}
+                                        <span class="badge bg-danger">Stock Bajo</span>
+                                    {% else %}
+                                        <span class="badge bg-success">OK</span>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-6">
+        <div class="card shadow">
+            <div class="card-header bg-info text-white">
+                <h5>Exportar Datos</h5>
+            </div>
+            <div class="card-body">
+                <p>Descargue los datos en formato CSV para su análisis.</p>
+                <div class="d-grid gap-2">
+                    <a href="{{ url_for('exportar_stock_csv') }}" class="btn btn-primary">Exportar Stock (CSV)</a>
+                    <a href="{{ url_for('exportar_movimientos_csv') }}" class="btn btn-secondary">Exportar Movimientos (CSV)</a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% if movimientos_recientes %}
+<div class="card shadow mt-4">
+    <div class="card-header bg-info text-white">
+        <h5>Últimos Movimientos</h5>
+    </div>
+    <div class="card-body">
+        <div class="table-responsive" style="max-height: 300px;">
+            <table class="table table-sm table-striped">
+                <thead>
+                    <tr>
+                        <th>Fecha</th>
+                        <th>Producto</th>
+                        <th>Tipo</th>
+                        <th>Cantidad</th>
+                        <th>Usuario</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for m in movimientos_recientes %}
+                    <tr>
+                        <td>{{ m.fecha }}</td>
+                        <td>{{ m.producto_nombre }}</td>
+                        <td>
+                            {% if m.tipo == 'entrada' %}
+                                <span class="badge bg-success">Entrada</span>
+                            {% else %}
+                                <span class="badge bg-danger">Salida</span>
+                            {% endif %}
+                        </td>
+                        <td>{{ m.cantidad }}</td>
+                        <td>{{ m.usuario }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endif %}
+{% endblock %}
