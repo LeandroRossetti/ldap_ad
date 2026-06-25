@@ -32,8 +32,8 @@ REQUIRED_ENV_VARS = {
     'AD_PORT': 'Puerto del servidor AD (ej: 389)',
     'AD_DOMAIN': 'Nombre del dominio AD (ej: IFTS)',
     'AD_BASE_DN': 'Base DN del AD (ej: dc=IFTS,dc=local)',
-    'HORA_INICIO': 'Hora de inicio del horario laboral (ej: 8)',
-    'HORA_FIN': 'Hora de fin del horario laboral (ej: 18)',
+    'HORA_INICIO': 'Hora de inicio por defecto (fallback si el usuario no tiene info en AD) (ej: 8)',
+    'HORA_FIN': 'Hora de fin por defecto (fallback si el usuario no tiene info en AD) (ej: 18)',
     'DATABASE_PATH': 'Ruta al archivo de base de datos (ej: stock.db)',
 }
 
@@ -92,9 +92,13 @@ def init_db():
 init_db()
 
 
-def validar_horario():
+def validar_horario(hora_inicio=None, hora_fin=None):
+    if hora_inicio is None:
+        hora_inicio = HORA_INICIO
+    if hora_fin is None:
+        hora_fin = HORA_FIN
     hora_actual = datetime.now().time()
-    return time(HORA_INICIO, 0) <= hora_actual <= time(HORA_FIN, 0)
+    return time(hora_inicio, 0) <= hora_actual <= time(hora_fin, 0)
 
 
 def autenticar_ad(usuario, password):
@@ -103,18 +107,32 @@ def autenticar_ad(usuario, password):
     usuario_ad = f'{usuario}@{AD_DOMAIN}.local'
     conn = Connection(server, user=usuario_ad, password=password, auto_bind=False)
     if not conn.bind():
-        return None
+        return None, None, None
 
     filtro = f'(sAMAccountName={usuario})'
-    conn.search(AD_BASE_DN, filtro, search_scope=SUBTREE, attributes=['memberOf'])
+    conn.search(AD_BASE_DN, filtro, search_scope=SUBTREE,
+                attributes=['memberOf', 'info'])
 
     grupos = []
-    if conn.entries and 'memberOf' in conn.entries[0]:
-        member_of = conn.entries[0].memberOf.values
-        grupos = [g.split(',')[0].replace('CN=', '') for g in member_of]
+    hora_inicio = None
+    hora_fin = None
+
+    if conn.entries:
+        entry = conn.entries[0]
+        if 'memberOf' in entry:
+            member_of = entry.memberOf.values
+            grupos = [g.split(',')[0].replace('CN=', '') for g in member_of]
+        if 'info' in entry and entry.info.value:
+            try:
+                partes = entry.info.value.split('-')
+                if len(partes) == 2:
+                    hora_inicio = int(partes[0].strip())
+                    hora_fin = int(partes[1].strip())
+            except (ValueError, TypeError):
+                pass
 
     conn.unbind()
-    return grupos
+    return grupos, hora_inicio, hora_fin
 
 
 def requiere_rol(rol_requerido):
@@ -134,21 +152,25 @@ def requiere_rol(rol_requerido):
 @app.route('/', methods=['GET', 'POST'])
 def login():
     if request.method == 'POST':
-        if not validar_horario():
-            flash('El sistema solo está disponible de {} a {} hs.'.format(HORA_INICIO, HORA_FIN))
-            return render_template('login.html')
-
         usuario = request.form['usuario']
         password = request.form['password']
 
-        grupos = autenticar_ad(usuario, password)
+        grupos, hora_inicio, hora_fin = autenticar_ad(usuario, password)
 
-        if grupos is not None:
-            session['usuario'] = usuario
-            session['grupos'] = mapear_roles(grupos)
-            return redirect(url_for('dashboard'))
-        else:
+        if grupos is None:
             flash('Usuario o contraseña incorrectos.')
+            return render_template('login.html')
+
+        inicio = hora_inicio if hora_inicio is not None else HORA_INICIO
+        fin = hora_fin if hora_fin is not None else HORA_FIN
+
+        if not validar_horario(inicio, fin):
+            flash('El sistema solo está disponible de {} a {} hs.'.format(inicio, fin))
+            return render_template('login.html')
+
+        session['usuario'] = usuario
+        session['grupos'] = mapear_roles(grupos)
+        return redirect(url_for('dashboard'))
 
     return render_template('login.html')
 
